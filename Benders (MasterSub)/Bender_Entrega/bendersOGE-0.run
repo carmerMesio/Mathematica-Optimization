@@ -1,0 +1,35 @@
+# CHANGE AND ADD WHATEVER MIGHT BE NECESSARY
+model bendersOGE.mod;
+data bendersOGE.dat;
+option solver cplex;
+
+#definición de los problemas
+problem SUBPR: xl,I,caps,zd;
+problem MasterP: zmp,y,Bcut,ZMP;
+
+
+let nCUT := 1;  # contador
+let {(i,j) in Ahat} yb[i,j]:= 1 0 1 0 0 0 0;  # INIT. VALUES
+                                  
+
+##### resolución mediante el método de Benders
+
+solve SUBPR;
+printf "\n";
+display zd;
+display y;
+
+let {(i,j) in Ahat, l in O} restric[i,j,l,nCUT]:=caps[i,j,l];
+let {i in N, l in O} u[i,l,nCUT]:=-I[i,l]+I[l,l];
+let {(i,j) in Ahat} ybk[i,j,nCUT]:=yb[i,j];
+
+
+solve MasterP;
+printf "\n";
+
+let {(i,j) in Ahat} yb[i,j]:=y[i,j];
+
+option display_1col 0;
+display zd;
+display zmp;
+

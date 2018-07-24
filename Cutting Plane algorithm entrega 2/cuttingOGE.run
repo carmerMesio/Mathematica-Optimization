@@ -1,0 +1,28 @@
+#per resoldre el oge sense capacitats ni lagrangian functions. Problema inicial.
+model cuttingOGE.mod;
+data cuttingOGE.dat;
+#data caps.dat;
+option solver cplexamp; # change appropriately if necessary
+
+
+problem PLAIN: xl,xx,I,total_flow,COST;
+
+solve PLAIN;
+
+for {(i,j) in A: xx[i,j]>0}{printf "%d %d %6.2f \n", i,j, xx[i,j] >> flows.dat;}
+
+########################################################################
+####ARA violarem 4 capacitats del flows.dat i ho guardem al flows1.dat.
+
+#per resoldre el oge sense capacitats ni lagrangian functions. Problema inicial.
+model cuttingOGE.mod;
+data cuttingOGE.dat;
+data caps.dat;
+option solver cplexamp; # change appropriately if necessary
+
+problem PLAIN: xl,xx,I,total_flow,caps,COST;
+
+solve PLAIN;
+
+for {(i,j) in A: xx[i,j]>0}{printf "%d %d %6.2f \n", i,j, xx[i,j] >> flows1.dat;}
+

@@ -1,0 +1,23 @@
+##for cutting plane
+model cuttingOGEm.mod;
+data cuttingOGEm.dat;
+#data caps.dat;
+option solver cplexamp; # change appropriately if necessary
+
+
+problem MP: z,mu0,cuts,Z;
+
+problem w_aval: xl,xx,I,art,total_flow,caps,w; #art fa referencia a els dos tipus de links artificials.
+
+param jj default 1;
+param nCUT0 default 1;
+#for each cut we call the problem 
+for {1..nCUT0}{
+## indiquem quines restriccions s'activaran fixan la fita a 0 (yy[jj]:=0)
+    let YY[jj]:= 0; # enables the jj-th constraint.
+   ##put statements here for calculate the gap of stopping add condition based on the gap.
+
+    let jj:=jj+1;
+}
+
+

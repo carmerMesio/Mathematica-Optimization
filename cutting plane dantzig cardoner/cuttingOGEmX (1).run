@@ -1,0 +1,118 @@
+model cuttingOGEm.mod;
+data cuttingOGEm.dat;
+data caps.dat;
+option solver cplex; 
+option log_file "results.txt";	
+
+# GAP to infinity
+param GAP default Infinity;
+
+problem MP: z,mu0,cuts,Z;
+problem w_aval: xl,xx,I,art,total_flow,caps,w;
+
+# nº iteracions 
+param nCUT0 default 10;
+
+let nCUT := 1;
+printf "iter:\n" > results0.txt;
+display nCUT > results0.txt;
+
+let YY[nCUT]:= 0; # enables the jj-th constraint.
+#let {o in artN, l in O, k in {1..nCUT}}  art1X[o,l,nCUT] :=160;
+let {o in artN, l in O, k in {1..nCUT}}  art1X[o,l,nCUT] :=120;
+
+
+let {o in artN, i in N, l in O, k in {1..nCUT}}  art2X[o,i,l,nCUT] := t[i,l];
+
+solve MP;
+printf "Solucio MP (Zk):\n" > results0.txt;
+display z > results0.txt;
+
+
+# inicializamos un multiplicador en restriccion 'big M'
+let mu[2,1] := 15;
+
+solve w_aval;
+printf "Solucio w(uk):\n" > results0.txt;
+display w > results0.txt;
+printf "\nctx:\n\n" > results0.txt;
+display (sum {(i,j) in A} c[i,j]*xx[i,j]) > results0.txt;
+# restricciones de demanda
+printf "restr. de demanda:\n\n" > results0.txt;
+display xx[1,4]-y[1,4] > results0.txt;
+display xx[7,19]-y[7,19] > results0.txt;
+display xx[11,8]-y[11,8] > results0.txt;
+display xx[11,22]-y[11,22] > results0.txt;
+
+let GAP := (z - w)/(abs(z) + 0.1);
+printf "GAP:\n\n" > results0.txt;
+display GAP > results0.txt;
+
+
+for {1..nCUT0}{
+# assignem mu trobats a MP;
+let nCUT := nCUT +1;
+
+printf "\niter:\n" > results0.txt;
+display nCUT > results0.txt;
+
+let YY[nCUT]:= 0; # enables the jj-th constraint.
+# assignem valors al MP;
+let {(i,j) in A, k in {1..nCUT}} xxX[i,j,nCUT] := xx[i,j];
+let {o in artN, l in O, k in {1..nCUT}}  art1X[o,l,nCUT] := art1[o,l];
+let {o in artN, i in N, l in O, k in {1..nCUT}}  art2X[o,i,l,nCUT] := art2[o,i,l];
+
+solve MP;
+printf "Solucio MP (Zk):\n" > results0.txt;
+display z > results0.txt;
+
+# reasignación multiplicador
+let {(i,j) in A} mu[i,j] := mu0[i,j];
+
+solve w_aval;
+printf "Solucio w(uk):\n\n" > results0.txt;
+display w > results0.txt;
+printf "ctx:\n\n" > results0.txt;
+display (sum {(i,j) in A} c[i,j]*xx[i,j]) > results0.txt;
+printf "restr. de demanda:\n\n" > results0.txt;
+display xx[1,4]-y[1,4] > results0.txt;
+display xx[7,19]-y[7,19] > results0.txt;
+display xx[11,8]-y[11,8] > results0.txt;
+display xx[11,22]-y[11,22] > results0.txt;
+
+
+
+
+let GAP := (z - w)/(abs(z) + 0.1);
+if (z - w)/(abs(z) + 0.1) <= 0.0001 then break;
+printf "GAP:\n\n" > results0.txt;
+display GAP > results0.txt;
+
+}
+
+printf "Solucio final:\n\n" > results0.txt;
+printf "ctxl:\n\n" > results0.txt;
+display (sum {(i,j) in A,l in O} c[i,j]*xl[i,j,l]) > results0.txt;
+printf "w:\n\n" > results0.txt;
+display w > results0.txt;
+printf "Variable mu:\n\n" > results0.txt;
+display mu > results0.txt;
+display mu;
+display xl;
+display caps;
+printf "Veure iteracions detallades a results0.txt\n\n";
+printf "Flux per origen:\n\n" > results0.txt;
+display xl > results0.txt;
+printf "Restr. caps:\n\n" > results0.txt;
+display caps > results0.txt;
+printf "restr. de demanda:\n\n" > results0.txt;
+display xx[1,4]-y[1,4] > results0.txt;
+display xx[7,19]-y[7,19] > results0.txt;
+display xx[11,8]-y[11,8] > results0.txt;
+display xx[11,22]-y[11,22] > results0.txt;
+
+
+
+
+
+

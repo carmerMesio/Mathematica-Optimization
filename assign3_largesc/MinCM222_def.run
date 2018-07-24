@@ -1,0 +1,40 @@
+##First problem
+model MinCM2_def.mod;
+data net.dat;
+options solver minos;
+problem Q: flux_total, N, v_k, v, Vnl; 
+solve Q;
+
+
+display v;
+
+display v_k;
+
+display Vnl;
+
+display flux_total;
+
+printf 'variable v \n' > Q_results.txt;
+display v > Q_results.txt;
+
+printf 'variable v_k \n' > Q_results.txt;
+display v_k > Q_results.txt;
+
+printf 'objective function \n' > Q_results.txt;
+display Vnl > Q_results.txt;
+
+printf 'Subject to: \n' > Q_results.txt;
+display flux_total > Q_results.txt;
+
+printf 'sum of flow by origin \n' > Q_results.txt;
+display sum {(i, j) in links , k in origens } v_k[i, j, 1];
+display sum {(i, j) in links , k in origens } v_k[i, j, 2];
+
+display sum {(i, j) in links , k in origens } v_k[i, j, 1] > Q_results.txt;
+display sum {(i, j) in links , k in origens } v_k[i, j, 2] > Q_results.txt;
+
+printf 'cost of flow by origin \n' > Q_results.txt;
+display  {(i,j) in links} (v_k[i,j,1]*c[i,j] + ((v_k[i, j,1]**2)/2)*d[i,j]);
+display  {(i,j) in links} (v_k[i,j,1]*c[i,j] + ((v_k[i, j,1]**2)/2)*d[i,j]) > Q_results.txt;
+display  {(i,j) in links} (v_k[i,j,2]*c[i,j] + ((v_k[i, j,2]**2)/2)*d[i,j]);
+display  {(i,j) in links} (v_k[i,j,2]*c[i,j] + ((v_k[i, j,2]**2)/2)*d[i,j]) > Q_results.txt;

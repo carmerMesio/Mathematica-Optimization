@@ -1,0 +1,166 @@
+---
+title: "3rd  Assignment. Frank Wolfe algorithm"
+author: "David Cardoner Valbuena"
+date: ""
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,message=FALSE,fig.height = 5,fig.width = 7,comment='',warning=FALSE)
+```
+
+## Introduction
+
+In this work we present a solution for an equilibrium traffic assignment problem. The algorithm is based on the concepts of simplicial decomposition, regularization and partial linearization. In this assignment, we consider an integrable linear delay cost function. For link $(i,j)$, the equation is: $s_{ij} = c_{ij} + d_{ij} x$, where $c_{ij}$,$d_{ij}$ are taken from the corresponding values $c,d$ in the data set.
+
+
+We have an instance of 8 nodes, and consider the nodes 1-2 as origins and 6-7 as destinations. So we have the next o-d pairs:
+
+
+```
+(1,6)
+(1,7)
+(2,6)
+(2,7)
+```
+
+
+## Graphical representation of the network
+
+In the next graph, we represented the network associated with our instance. Green colors are destinations and orange colors origins:
+
+```{r}
+require(igraph)
+row1 <- c(0,1,1,0,0,0,1,0)
+row2 <- c(0,0,1,1,1,1,0,0)
+row3 <- c(0,0,0,1,0,1,1,1)
+row4 <- c(0,0,0,0,1,0,0,1)
+row5 <- c(0,0,0,0,0,1,1,0)
+row6 <- c(0,0,0,0,0,0,0,1)
+row7 <- c(0,0,0,0,0,0,0,0)
+row8 <- c(0,0,0,0,0,0,0,0)
+
+
+data <- as.data.frame(rbind(row1,row2,row3,row4,row5,row6,row7,row8))
+
+colnames(data) <- c(1,2,3,4,5,6,7,8)
+net=graph.adjacency(as.matrix(data),mode='directed')
+
+set.seed(1002)
+plot.igraph(net,mark.shape = 1,mark.border = 'black',layout=layout.fruchterman.reingold,
+            vertex.color=c(1,'white',1,'white','white',3,3),mark.col = 'black',
+            vertex.label.color= "black",edge.arrow.size=0.5)
+
+
+```
+
+## Idea of the algorithm
+
+We formulate the problem in terms of paths (routes) between o-d pairs. The simplicial decomposition approach can be viewed as a column generation approach. Consider a subset of k paths , we solve a master problem (**MP**) and evaluate this solution to another problem. If optimal path flows are optimal in MP are also optimal in other problem. The idea is to evaluate the arc flows and the gradient of the objective function. By the Caratheodory theorem, any feasible point of bounded polygon can be expressed as a convex combination of its extreme points, and it's obtained by the MP.
+
+The quadratic function to minimize is: $\displaystyle \sum c_{ij}\;x + \displaystyle \sum \frac{1}{2} d_{ij} \;x^2$ subject to supply the o-d pairs flow in the network.
+
+##Introduction
+
+
+The class of simplicial decomposition (SD) schemes have shown to provide efficient tools for nonlinear network flows. Shortest subproblems are solved in order to generate extreme points of the polyhedron of feasible flows, and, alternately, master problems are solved over the convex hull of the generated extreme points. We review the development of simplicial decomposition and the closely related column generation methods.
+
+Steps of the algorithm:
+
+1) Solve subproblem (gradient of the objective function): $c_{ij} + d_{ij}\;x$.
+
+First we solve the subproblem with an initial value of $t0 = 1$ to generate a bad initial solution of the Sub-Problem. After that we increase the sets **Ws** and then solve the __Master Problem__ (MP).
+With the values of the **MP** we are going to fix a new value to $t0$ based on the gradient of the __quadratic function__ evaluated in __vv__ obtained in the resolution of **MP** where __vvv__ is the sets __Wx__ multiplied by their associated $\alpha_{i = 1..n}$. 
+
+2) Update working sets: Add a new vertex and remove with information of $\alpha$ (MP variable) the smaller baricentric coordinate (small value of $\alpha$). When we say small is in terms of zero or close to zero.
+
+When we arrive at a point where the dimensions of __Ws__ is equal to __rho__ we have to modify the columns of __Ws__ based on the associated values of $\alpha$. To do that we will choose the smallest value of vector of $\alpha$ (associated with the baricentric coordinates of vertexs) and change this column with the value obtained in the new resolution of **SP**.
+
+3) Update best lower bound (BLB) and calculate gap. When the **GAP** will be close to zero or the number of iterations arrives to 500 the algorithm will stop.
+
+In step 3, we will update the __BLB__ as: $max(BLB,f(x^v)+\nabla_xf(x^v)^T(\hat{x}^v-x^v))$ and gap as: $\frac{f(x^v-BLB)}{BLB}$. With this criterion we will ensure that our __BLB__ and the value of the __f.obj__ will converge and the gap will tend to zero.
+
+We stop iterating if $gap < 0.005$ or iteration number is equal to 500.
+
+4) Solve MP: Minimize quadratic function subject to actual working set, or in other words, solve the problem with a convex combination of extreme points obtained in the previous steps. *Go to step 1*.
+
+At this point, we will use the set of combinations, called __W__ (solutions obtained solving at each step the SP) to solve the MP and obtain the optimal solution of the algorithm or new points (combinations of origin destination flows) to use in the SP as a lineal combination of origin destination flows multiplied by $\alpha_{i}$, $\; i= 1..n$. 
+
+We start algorithm with __BLB__ = $-\infty$. The goal is to observe how the __MP__ and __BLB__ will become closer at every iteration. 
+
+
+### Procedure information
+
+In the next table, we put information about the procedure at some iterations.
+
+- iter = # iteration until $\rho=2$, so we need to update extreme points with  $\alpha_i$ variables.
+- BLB = Best Lower Bound
+- log_relgap = logarithm of relative gap value
+- relgap = relative gap value
+- Vnl = Quadratic objective function solution (associated to MP)
+- alpha = Value of $\alpha_i$ variables to obtain information about baricentric coordinates.
+
+To explore the results of the algorithm, a subset of the iterations is performed in the next table. The first 18 and the last 14 iterations is shown. With this table, we can see how our algorithm start with very bad results in terms of __GAP__ and how in each iteration the value reduces. The scale logarithmic is also assumed at this point (like in the graphical representation). 
+
+```{r}
+Q<-as.data.frame(readLines("resultsQ.txt"))
+Q <-gsub("Vnl = ","",Q[!apply(Q == "", 1,all),])
+alphes<-as.data.frame(readLines("results_alfa.txt"))
+alphes$t <- as.character(alphes$`readLines("results_alfa.txt")`)
+
+alphes_v <- list()
+
+k = 1;
+i = 2;
+while(i <= nrow(alphes)) {
+
+alphes_v[k] <- paste("alpha",alphes[i,"t"],
+                     "alpha",alphes[i+1,"t"],
+                     "alpha",alphes[i+2,"t"],sep=" ")
+  
+  i = i + 6;                     
+  k = k + 1;
+}
+
+alpha_valor <- unlist(alphes_v[1:length(alphes_v)])
+
+taula <- data.frame(iter = c(3:21,121:133),
+                    BLB = BLB[c(3:21,121:133)],
+                    log_relgap = log(as.numeric(relgap[c(3:21,121:133)])),
+                    relgap = as.numeric(relgap[c(3:21,121:133)]),
+                    Vnl = as.numeric(Q[c(3:21,121:133)]),
+                    alpha = alpha_valor[c(3:21,121:133)])
+
+knitr::kable(taula)
+```
+
+### Graphical representation of procedure
+
+In the nexts graphs are the detailed evolution of relative gap (in logarithmic terms) and the evoluton of __BLB__. After 134 iterations the value of the __relgap__ reaches the minimum value. The values are plotted after the **rho** si full, the reason is that we want to show how the algorithm reduces the value of the objective function at each iteration.
+
+```{r}
+relgap<-as.data.frame(readLines("resultsgap.txt"))
+relgap <-gsub("relgap = ","",relgap[!apply(relgap == "", 1,all),])
+BLB<-as.data.frame(readLines("resultsBLB.txt"))
+BLB <-gsub("BLB = ","",BLB[!apply(BLB == "", 1,all),])
+
+par(mfrow=c(1,2))
+
+plot(3:length(relgap),log(as.numeric(relgap[-c(1:2)])),col='red',type='l',ylab="log(relgap)",
+                xlab="nº iter",lty=1,lwd=2,main='log(relgap) \n vs. nº iter')
+
+plot(3:length(BLB),as.numeric(BLB[-c(1:2)]),col='red',type='l',ylab="BLB value",
+                xlab="nº iter",lty=1,lwd=2,main='Best lower bound (BLB) \n vs. nº iter')
+```
+
+
+## Direct solution
+
+Let's start solving the problem directly. The objective function found is 17.350. With this value we will now the aproximate value of the solution of **RSD** algorithm (i say aprox. because our GAP is not zero). We display the values of the amount that is moved between the diferent __O-D__ pairs and the value of the objective function returned by the algorithm. Is important to remember that in easy problems the algorithm solved by this method (let's call them the simplest method) could be obtained, while in long problems will be very expensive (in terms of computation) to know this value.
+
+##Conclusions
+
+The value of v obtained with the direct solution and the value obtained with the aplication of SD are quite similar but not equal. The reason is because the __relgap__ is not exactly zero. This is the reason why some values of __v__ and __vv__ are not at all similar.
+
+## Printout of the iterations
+

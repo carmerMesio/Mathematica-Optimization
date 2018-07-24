@@ -1,0 +1,87 @@
+---
+title: "Affine Scaling"
+author: "David Cardoner & Arnau Mercader"
+date: "17 de mayo de 2018"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(knitr)
+library(kableExtra)
+```
+
+# Objetivo
+
+Resolución del método del **Escalado Afín** para problemas de programación lineal de la colección __Netlib__ 
+
+# Introducción
+
+En el presente documento, se usará __Matlab__ para implementar el método del **Escalado Afín**. Para evaluar el algorítmo llevado a cabo, se utilizarán 2 problemas de moderada dimensión, de la colección comentada anteriormente. El primero __lp_afro__ y el segundo __lp_adlittle__.
+
+El método del **Escalado Afín** es un método de punto interior que, a diferencia del método del __Simplex__ busca el óptimo del problema partiendo de una solución inicial interior, por lo que todas las $x_i > 0$, $i=1,..,n$. En nuestro caso, usaremos el método __big-M__ para encontrar dicha solución. En cada iteración, el algoritmo realiza una transformación llamada **afín** que lo que hace es proyectar el vector de costes en una nueva dimensión ortogonal a la original $P_{c}$. Entonces, fijaremos la dirección de movimiento $\Delta_{x}=-P_{c}$, ya que queremos minimizar nuestra función objetivo. Esta dirección asegura que el nuevo punto $x_{k+1}$ será factible y a la vez $c^Tx_{k+1}\leq c^Tx_{k}$, donde $c$ representa el vector de costes. Como bien define el nombre del algoritmo, la dirección de descenso obtenida se multiplica por un escalar $\rho$ para que el nuevo punto no este muy cerca de la frontera del poliedro a optimizar.
+
+##Lp Afiro
+
+Se explicará la estructura del problema asumiendo que esta en forma estándard.
+
+- número de filas (n): 27
+- número de columnas (m): 51
+- número de elementos distintos de 0: 102
+- estructura: rectangular
+
+![lp_afiro](https://www.cise.ufl.edu/research/sparse/matrices/LPnetlib/lp_afiro.png)
+
+##Lp Adlittle
+
+- número de filas (n): 56
+- número de columnas (m): 138
+- número de elementos distintos de 0: 424
+- estructura: rectangular
+
+![lp_adlittle](https://www.cise.ufl.edu/research/sparse/matrices/LPnetlib/lp_adlittle.png)
+
+## Resolución del Algoritmo del Escalado Afín.
+
+El procedimiento que se seguirá sera fijar un valor de M o **big number** y luego fijar un valor para el parámetro **rho** (evitará que demos pasos que nos lleven a extremos del poliédro). Se porcederá a que el algoritmo itere y a continuación, se moverá de maner secuencial el valor de **rho**. Una vez provados ciertos valores para **rho** se modificará el valor de M y se procederá de nuevo con los mismos valores de **rho** utilizados (si no et mola algu MERCA ho canvies).
+
+### Aproximación inicial
+
+```{r}
+results_Affine <- data.frame("M_value"=c(100,100,100,500,500,500,1000,1000,1000),"rho_value"=c(0.7,0.85,0.95,0.7,0.85,0.95,0.7,0.85,0.95),"iterations"=c(45,37,33,37,30,23,37,26,27),"optimal_value"=c(2.2550e+05,2.2550e+05,2.2550e+05,2.2550e+05,2.2550e+05,2.2550e+05,2.2550e+05,2.2550e+05,2.2550e+05))
+results_Affine %>% kable("latex",col.names = c("M value","rho value","Iteraciones","Valor del óptimo"),align = 'c',caption = "Evolution of Algortihm using multiple M & rho")
+
+```
+
+Una curiosidad es que al fijar la M a un valor más pequeño, inicialmente el GAP dual toma un valor más elevado. Esto afecta al número de iteraciones y, por tanto, al timepo de convergéncia del algoritmo.
+
+A medida que incrementamos el valor de **rho** el número de iteraciones necesarias para hallar el óptimo disminuye pasando de 45 a 26. Aunqué el efecto de M también es singificativo, parace ser que el valor de **rho** tiene un peso muy elevado en la velocidad de convergéncia del algorítmo.
+
+### Modificación de la matriz D por la Identidad
+
+Pasemos ahora a modificar el valor de la matriz de escalado o matrix proyección por la matriz identidad. El proceso que seguiremos será el mismo que anteriormente, es decir, de forma secuencial iremos provando los valores asignados a M y **rho**.
+
+```{r}
+results_AffineIdent <- data.frame("M_value"=c(100,100,100,500,500,500,1000,1000,1000),"rho_value"=c(0.7,0.85,0.95,0.7,0.85,0.95,0.7,0.85,0.95),"iterations"=c(45,37,33,37,30,23,37,26,27),"optimal_value"=c(2.2550e+05,2.2550e+05,2.2550e+05,2.2550e+05,2.2550e+05,2.2550e+05,2.2550e+05,2.2550e+05,2.2550e+05))
+
+results_AffineIdent %>% kable("latex",col.names = c("M value","rho value","Iteraciones","Valor del óptimo"),align = 'c',caption = "Evolution of Algortihm using identity matrix")
+
+```
+
+
+### Función linprog de Matlab
+
+Utilizando la función de **Matlab** __linprog__ se obtiene:
+- Número necesario de iteraciones: 94
+- Valor de la función objetivo: 2.2549e+05
+
+El número de iteraciones necesario para resolver el algorítmo es significativamente mayor usando el método __linprog__ que en definitiva
+
+MERCA HE trobat aquestes opció que implementa la funció linprog de Matlab. podem dir que fa simplex dons no ?¿
+options = optimoptions('linprog','Algorithm','dual-simplex')
+

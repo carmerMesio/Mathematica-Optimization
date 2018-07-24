@@ -1,0 +1,105 @@
+reset;
+model entrega3_def.mod;
+data net.dat;
+option solver minos;
+
+# Lower bound to start the problem
+param BLB default -Infinity;	
+
+param pSTOP;
+param k default 0;
+param relgap;
+param columns;
+
+param vv{links};
+
+# baricentric coordinate
+param minalpha;
+param alpha{0..rho} default 0; 
+
+# SUBPROBLEM
+problem SUB: v_k, v, N, flux_total, Vg;  
+
+# MASTER PROBLEM
+problem MP: v_k, v,vvv,alp, N,flux_total, Vnl, suma,wset; 	
+
+# Initially 
+# We fix a value on t0 at random (just a positive value) then we fix the value obtained solving the gradient in the point (sop). 
+let {(i,j) in links} t0[i,j]:=1;
+solve SUB;
+let {(i,j) in links} vv[i,j]:=v[i,j]; 
+display vv;
+
+let {(i,j) in links} Wx[i,j]:=v[i,j];
+let {(i,j) in links} W[i,j,0]:=v[i,j];
+
+let pSTOP:=0;
+let columns:=1;
+
+### First iteration. Ajust the value of t0 based on the gradient evaluated in the vv obtained in MP. 
+let {(i,j) in links} t0[i,j] := c[i,j] + d[i,j] * vv[i,j];	# Gradient evaluation
+solve SUB;
+display v;
+
+repeat while k <= 500 and pSTOP = 0 {
+	## First start solving the subproblem to find values to test in the MP.
+	
+		if(k>0) then {
+		
+		let {(i,j) in links} t0[i,j] := c[i,j] + d[i,j] * vv[i,j];	# Gradient
+		solve SUB;
+		let {(i,j) in links} vv[i,j]:=v[i,j];
+		}
+		##When we have space in the set of points we just add the values.		
+		if columns <= rho then {
+		
+			let {(i,j) in links} Ws[i,j,columns]:=v[i,j];
+			let columns:=columns+1;
+			
+		##When we have our sets full we start evaluating the effect of alphas (baricentric coordinates).
+	    } else if columns > rho then{
+				 
+				 let minalpha:=min{i in 1..rho}alpha[i];
+				 for  {l in 1..rho} { 
+				 	if alpha[l]= minalpha then {
+						let {(i,j) in links} Ws[i,j,l]:=v[i,j];
+						let{(i,j) in links} Wx[i,j]:= vvv[i,j];
+						let columns:=columns+1;
+					}
+				}		
+		}
+		# We remove the values with the null or near zero alpha and then add a new value find in the sp. Then we take the value obtained with MP and put them in the set Wx
+		# New set of extreme points for the master problem
+		let {(i,j) in links} W[i,j,0]:= Wx[i,j];
+		let {(i,j) in links,l in 1..rho} W[i,j,l]:= Ws[i,j,l];
+		display W > annex.txt;
+		display Wx > annex.txt;
+		display Ws > annex.txt;
+		let BLB:= max(BLB,((sum {(i, j) in links }c[i,j]*vvv[i,j] + sum {(i, j) in links }0.5*d[i,j]*vvv[i,j]^2)+sum{(i,j) in links}t0[i,j]*(v[i,j]-vvv[i,j])));
+		display BLB > resultsBLB.txt;
+		let relgap:= (abs((sum {(i, j) in links }c[i,j]*vvv[i,j] + sum {(i, j) in links }0.5*d[i,j]*vvv[i,j]^2)-BLB))/BLB;
+		display relgap > resultsgap.txt;
+		if relgap <=0.005 then let pSTOP:=1;
+		solve MP;
+		display Vnl > resultsQ.txt;
+		
+		let {i in 0..rho}alpha[i]:=alp[i];	
+		let {(i,j) in links} vv[i,j]:=vvv[i,j];
+		let minalpha := min{l in 0..rho} alpha[l]; 
+		display k;
+		display alp > results_alfa.txt;
+		display minalpha;
+		let k:=k+1;
+		
+}
+
+display Vnl > resultsQ.txt;	
+display alp > results_alfa.txt;		
+						    
+	    			
+	    
+	    
+	
+
+
+

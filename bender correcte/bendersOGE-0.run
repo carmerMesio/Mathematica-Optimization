@@ -1,0 +1,62 @@
+# CHANGE AND ADD WHATEVER MIGHT BE NECESSARY
+model bendersOGE.mod;
+data bendersOGE.dat;
+option solver cplex;
+
+#definición de los problemas
+
+problem SUBPR: xl,I,caps,zd;
+problem MasterP: zmp,y,Bcut,ZMP;
+
+let a:= 0;
+let costs:=0;
+let invcost:=0;
+let nCUT := 0;  # contador
+let {(i,j) in Ahat} y[i,j]:=0;  # INIT. VALUES. Then put at 1
+
+param GAP default Infinity;
+
+##### resolución mediante el método de Benders
+repeat { 
+
+printf "\nITERATION %d\n\n", nCUT+1;
+
+solve SUBPR;
+printf "\n";
+
+display zd;
+display y;
+
+let a:= zd + sum {(i,j) in Ahat} f[i,j]*yb[i,j];
+let costs:= sum{l in O} (sum {(i,j) in AA} c[i,j,l]*xl[i,j,l]);
+let invcost:= sum {(i,j) in Ahat} f[i,j]*y[i,j];
+display GAP;
+
+option display_1col 20;
+let nCUT := nCUT + 1;
+let GAP := min (GAP, (a - zmp)/(abs(zmp) + 0.1));
+
+if (a - zmp)/(abs(zmp) + 0.1) <= 0.00001 then break;
+ 
+let {(i,j) in Ahat, l in O} restric[i,j,l,nCUT]:=caps[i,j,l];
+let {i in N, l in O} u[i,l,nCUT]:= -I[i,l]+I[l,l]; #a u es on anirem treien el flujo que va sortint.
+let {(i,j) in Ahat} ybk[i,j,nCUT]:= yb[i,j];
+
+printf "\nRE-SOLVING MASTER PROBLEM\n\n";
+solve MasterP;
+display ZMP;
+printf "\n";
+display invcost;
+display costs;
+option display_1col 20;
+let {(i,j) in Ahat} yb[i,j]:=y[i,j];
+};
+
+option display_1col 20;
+display zd;
+display y;
+display a;
+display costs;
+display invcost;
+display GAP;
+display ZMP;
